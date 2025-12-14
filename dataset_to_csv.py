@@ -111,37 +111,106 @@ def txt_to_csv(
     texts_to_csv(texts, output_csv, embedding_method, embedding_kwargs)
 
 
-if __name__ == "__main__":
-    # 示例：创建测试数据集并转为 CSV
+def main():
+    """主函数：处理命令行参数"""
+    import argparse
     
-    test_texts = [
-        "机器学习是人工智能的一个重要分支",
-        "深度学习在计算机视觉中应用广泛",
-        "自然语言处理技术在文本分析中很有用",
-        "神经网络模型性能不断提升",
-        "数据科学是当今重要的技能",
-        "向量数据库用于存储高维向量",
-        "Milvus 是一个开源向量数据库",
-        "语义搜索基于文本相似度",
-        "Transformer 模型改变了 NLP 领域",
-        "BERT 是预训练的语言模型"
-    ]
-    
-    print("=" * 60)
-    print("文本数据集转换为 CSV")
-    print("=" * 60)
-    
-    # 转换为 CSV
-    texts_to_csv(
-        test_texts,
-        "test_dataset.csv",
-        embedding_method="sentence-transformers",
-        embedding_kwargs={"model_name": "all-MiniLM-L6-v2"},
-        show_progress=True
+    parser = argparse.ArgumentParser(
+        description="将文本数据集转换为包含向量的 CSV 文件",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例用法：
+  # 从文本文件转换
+  python dataset_to_csv.py -t data.txt -o output.csv
+  
+  # 从 JSON 文件转换
+  python dataset_to_csv.py --json data.json -o output.csv
+  
+  # 使用中文模型
+  python dataset_to_csv.py -t data.txt -o output.csv -m paraphrase-multilingual-MiniLM-L12-v2
+  
+  # 自定义 batch_size 加速
+  python dataset_to_csv.py -t data.txt -o output.csv -b 64
+        """
     )
     
-    print("\n✓ 数据集转换完成！")
-    print("  输出文件: test_dataset.csv")
-    print("\n使用该 CSV 文件：")
-    print("  1. 读取 CSV 并插入 Milvus")
-    print("  2. 进行语义搜索测试")
+    parser.add_argument(
+        '-t', '--txt',
+        type=str,
+        default='data.txt',
+        help='输入的文本文件（每行一条文本，默认: data.txt）'
+    )
+    
+    parser.add_argument(
+        '-j', '--json',
+        type=str,
+        help='输入的 JSON 文件（如指定，则使用 JSON 而非文本文件）'
+    )
+    
+    parser.add_argument(
+        '-o', '--output',
+        type=str,
+        default='output.csv',
+        help='输出的 CSV 文件路径（默认: output.csv）'
+    )
+    
+    parser.add_argument(
+        '-m', '--model',
+        type=str,
+        default='all-MiniLM-L6-v2',
+        help='Embedding 模型（默认: all-MiniLM-L6-v2）'
+    )
+    
+    parser.add_argument(
+        '-b', '--batch-size',
+        type=int,
+        default=32,
+        help='Embedding batch size（默认: 32，可增大加速）'
+    )
+    
+    parser.add_argument(
+        '--text-field',
+        type=str,
+        default='text',
+        help='JSON 中文本字段的名称（仅当使用 --json 时有效，默认: text）'
+    )
+    
+    args = parser.parse_args()
+    
+    print("=" * 70)
+    print("文本数据集转换为 CSV")
+    print("=" * 70)
+    
+    # 选择转换方式
+    if args.json:
+        print(f"\n[输入] JSON 文件: {args.json}")
+        print(f"[字段] 文本字段: {args.text_field}")
+        json_to_csv(
+            args.json,
+            args.output,
+            text_field=args.text_field,
+            embedding_method="sentence-transformers",
+            embedding_kwargs={"model_name": args.model}
+        )
+    else:
+        print(f"\n[输入] 文本文件: {args.txt}")
+        txt_to_csv(
+            args.txt,
+            args.output,
+            embedding_method="sentence-transformers",
+            embedding_kwargs={"model_name": args.model}
+        )
+    
+    print("\n[配置]")
+    print(f"  Embedding 模型: {args.model}")
+    print(f"  Batch Size: {args.batch_size}")
+    print(f"[输出] CSV 文件: {args.output}")
+    
+    print("\n✓ 转换完成！")
+    print("\n后续步骤:")
+    print(f"  1. 导入到 Milvus: python import_csv_to_milvus.py -f {args.output}")
+    print(f"  2. 进行搜索: python quick_search.py '查询文本'")
+
+
+if __name__ == "__main__":
+    main()
